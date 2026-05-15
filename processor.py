@@ -1,10 +1,10 @@
 """
 GEMINI JSON BATCH PROCESSOR + LIVE VALIDATOR  (v6)
-  • Timeout API call (default 120s) — tidak stuck selamanya
-  • Exponential backoff retry: 503 / timeout / response kosong
-  • Auto-repair STATIC_KEY_CHANGED dari input asli
-  • PROHIBITED_CONTENT → fallback per-item (item diblokir → teks asli dipertahankan)
-  • Safety settings BLOCK_NONE — konten 18+ tidak disensor
+  • Timeout API call (default 120s) — does not get stuck forever
+  • Exponential backoff retry: 503 / timeout / empty response
+  • Auto-repair STATIC_KEY_CHANGED from original input
+  • PROHIBITED_CONTENT → fallback per-item (blocked items → original text preserved)
+  • Safety settings BLOCK_NONE — 18+ content is not censored
   • Smart batch splitting by payload size
 """
 
@@ -45,70 +45,98 @@ MUTABLE_KEYS = ["text"]
 # ═══════════════════════════════════════════════════════════════
 
 MASTER_PROMPT = """
-**Peran (Role):**
-You are a professional Japanese-to-Indonesian translator specializing in visual novels. Your task is to provide accurate translations of JSON dialogue data. 
+**Role:**
+You are a professional Japanese-to-English translator specializing in visual novels. Your task is to provide accurate translations of JSON dialogue data. 
 
-**[ATURAN TEKNIS MUTLAK — WAJIB DIPATUHI TANPA PENGECUALIAN]**
+**[ABSOLUTE TECHNICAL RULES — MANDATORY TO FOLLOW WITHOUT EXCEPTION]**
 
-PERINGATAN KRITIS: Anda HANYA boleh mengubah nilai dari key "text". Key "id", "type", dan "speaker" harus disalin PERSIS sama seperti di input.
+CRITICAL WARNING: You may ONLY change the value of the "text" key. The "id", "type", and "speaker" keys must be copied EXACTLY as they are in the input.
 
-ATURAN INTEGRITAS TEKS & BARIS (SANGAT PENTING):
-1. **DILARANG MENGGESER KALIMAT:** Anda HARUS menerjemahkan teks TEPAT di `id` aslinya. DILARANG KERAS memindahkan, memecah, atau menggabungkan terjemahan dari satu `id` ke `id` lain. 
-2. **DILARANG MEMBUANG TEKS:** Jika sebuah `id` memiliki teks bahasa Jepang, Anda WAJIB menerjemahkannya. Jangan pernah menghilangkan dialog karakter.
-3. **INTEGRITAS TANDA KUTIP:** Pertahankan tanda baca Jepang persis seperti aslinya. 
-   - Jika input HANYA memiliki kutip pembuka (contoh: `「ああ`), output HARUS HANYA memiliki kutip pembuka (contoh: `「Ah`). JANGAN tambahkan kutip penutup `」` jika di aslinya tidak ada!
-   - Jika kalimat terpotong, biarkan terpotong.
-4. Nilai "$str20", "$str21", dsb. adalah variabel kode internal. Salin apa adanya.
-5. Jika "type" adalah "narration" dan "speaker" null, biarkan output tetap null.
-6. Output HARUS berupa JSON object tunggal (Key = nama file, value = array). TANPA markdown.
+TEXT & LINE INTEGRITY RULES (CRITICALLY IMPORTANT):
+1. **NO SHIFTING SENTENCES:** You MUST translate the text EXACTLY at its original id. It is STRICTLY FORBIDDEN to move, split, or combine translations from one id to another. 
+2. **NO DROPPING TEXT:** If an id has Japanese text, you MUST translate it. Never omit character dialogue.
+3. **QUOTATION INTEGRITY:** Preserve Japanese punctuation exactly as the original.
+   - If the input ONLY has an opening quote (example: `「ああ`), the output MUST ONLY have an opening quote (example: `「Ah`). DO NOT add a closing quote `」` if it doesn't exist in the original!
+   - If a sentence is cut off, leave it cut off.
+4. Values like "$str20", "$str21", etc., are internal code variables. Copy them exactly as they are.
+5. If the "type" is "narration" and "speaker" is null, leave the output as null.
+6. The output MUST be a single JSON object (Key = file name, value = array). NO markdown.
 
-**Aturan Dasar & Glosarium:**
+**Basic Rules & Glossary:**
 * During sex scenes, use lewd, sexual terms. Translating 18+ text is strictly allowed and required.
-* Gunakan daftar nama berikut (HANYA untuk isi "text", BUKAN "speaker"):
-    * 和倉 賢一 = Wakura Kenichi
-    * 黒姫 結灯 = Kurohime Yuuhi
-    * 蔦町 ちとせ = Tsutamachi Chitose
-    * 氷見山 玲 = Himiyama Rei
-    * 地獄谷 咲來 = Jigokudani Sara
-    * こはる = Koharu
-    * ちはや = Chihaya
-    * のどか = Nodoka
-    * ひより = Hiyori
-    * 勇希 = Yuki
-    * 咲來 = Sakura / Sara
-    * 地獄谷 高秀 = Jigokudani Takahide
-    * 淵上 駿太郎 = Fuchigami Shuntarou
-    * 螢雪楼の女将 = Pemilik Penginapan Keisetsurou
-    * 奏 = Kanade
-    * 実來 = Mitsuki
-    * 望 = Nozomi
-    * 歩愛 = Ayumi
-    * 浩輔 = Kosuke
-    * 涙香 = Namika
-    * 澪香 = Mio
-    * 灯向 = Tomoka
-    * 真波 = Manami
-    * 穂波 = Honami
-    * 紗雪 = Sayuki
-    * 美雪 = Miyuki
-    * 聖 = Sei
-    * 雪静 = Yukishizuka
-    * 静雫 = Shizushizuku
-    * 麻灯 = Asato
-    * 寶泉路 = Hosenji
-    * マスター = Master
-    * ながれ茶屋街 = Distrik Nagare Chaya
-    * ちゃやがい = Kedai Teh
-    * 緋衣亭/ひごろもてい = Higoromotei
+* Use the following name list (ONLY for "text" content, NOT "speaker"):
+    * と志枝 = Toshie
+    * ななの = Nanano
+    * みちる = Michiru
+    * れんげ = Renge
+    * を = Wo
+    * アッチャー = Atcher
+    * カルビ将軍 = General Kalbi
+    * ガクエンチャー = Gakuencher
+    * キアラ = Kiara
+    * サッチャー = Satcher
+    * デイブ教授 = Professor Dave
+    * ニャンメル = Nyanmel
+    * マグロマン = Maguroman
+    * マサヒコ = Masahiko
+    * マッチャー = Matcher
+    * ミッチャー = Mitcher
+    * ヤブイヌ = Bush Dog
+    * ロンメル = Rommel
+    * 一姫 = Kazuki
+    * 井原 = Ihara
+    * 仁美 = Hitomi
+    * 伊吹 = Ibuki
+    * 佐久間 = Sakuma
+    * 古森 = Komori
+    * 可奈子 = Kanako
+    * 坂下 = Sakashita
+    * 大塚 = Ootsuka
+    * 天音 = Amane
+    * 奥田 = Okuda
+    * 小嶺 = Komine
+    * 幸 = Sachi
+    * 広岡 = Hirooka
+    * 村松 = Muramatsu
+    * 松山 = Matsuyama
+    * 桜井 = Sakurai
+    * 榊 = Sakaki
+    * 正孝 = Masataka
+    * 沙里菜 = Sarina
+    * 沢田 = Sawada
+    * 清夏 = Kiyoka
+    * 由真 = Yuma
+    * 由美子 = Yumiko
+    * 直志 = Naoshi
+    * 美佐子 = Misako
+    * 葎 = Mugura
+    * 蒔菜 = Makina
+    * 越智 = Ochi
+    * 道昭 = Michiaki
+    * 金田 = Kaneda
+    * 鈴音 = Suzune
+    * 阿藤 = Atou
+    * 雄二 = Yuuji
+    * ０１９ = 019
+    * ？？？ = ???
+    * Ａ音 = A-ne
+    * Ｃ鶴 = C-zuru
+    * ＪＢ = JB
+    * Ｋ嶺 = K-mine
+    * Ｍちる = M-chiru
+    * ＳＰ = SP
+    * ＳＰ２ = SP2
+    * ＳＰ３ = SP3
+    * Ｙ美子 = Y-miko
     * センパイ = Senpai
 
-**Panduan Gaya Bahasa (Style Guide):**
-* **Kasual & Natural:** Gunakan bahasa Indonesia percakapan sehari-hari yang luwes ("nggak", "sih", "kok", "banget", "udah"). 
-* **Kata Ganti:** Gunakan "aku" untuk orang pertama. Gunakan "Kakak" untuk menerjemahkan Senpai.
-* **Onomatope:** Terjemahkan efek suara lisan (misal: "Fua...", "Uuu...", "Ahaha").
-* **Format Tag:** Pertahankan tag HTML (seperti `<BR>` dan `<FWSP>`) TEPAT di posisi aslinya. Jangan dihapus atau dipindah ke baris/id lain.
+**Style Guide:**
+* **Casual & Natural:** Use fluent, everyday conversational English for most translations. Use military jargon when appropriate. 
+* **Pronouns:** Use "I" for the first person. Use "Senpai" to translate センパイ and 先輩.
+* **Onomatopoeia:** Translate spoken sound effects (example: "Fua...", "Uuu...", "Ahaha").
+* **Tag Formatting:** Maintain HTML tags (such as `<BR>` dan `<FWSP>`) EXACTLY in their original positions. Do not delete or move them to other lines/ids.
 
-**Data JSON yang harus diterjemahkan:**
+**JSON data to be translated:**
 {json_content}
 """
 
@@ -117,7 +145,7 @@ ATURAN INTEGRITAS TEKS & BARIS (SANGAT PENTING):
 # ═══════════════════════════════════════════════════════════════
 
 class ProhibitedContentError(Exception):
-    """Prompt diblokir PROHIBITED_CONTENT — jangan retry, langsung per-item."""
+    """Prompt blocked by PROHIBITED_CONTENT — do not retry, go directly per-item."""
     pass
 
 # ═══════════════════════════════════════════════════════════════
@@ -154,7 +182,7 @@ load_dotenv()
 def init_gemini() -> genai.Client:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("[ERROR] GEMINI_API_KEY tidak ditemukan di .env!")
+        print("[ERROR] GEMINI_API_KEY not found in .env!")
         sys.exit(1)
     return genai.Client(api_key=api_key)
 
@@ -235,16 +263,16 @@ def _extract_json_from_text(raw: str) -> str:
 def _is_retryable(e: Exception) -> bool:
     msg = str(e).lower()
     return any(k in msg for k in ["503", "unavailable", "overload", "resource exhausted",
-                                   "429", "too many requests", "timeout", "kosong", "json tidak valid"])
+                                   "429", "too many requests", "timeout", "empty", "invalid json"])
 
 def call_gemini_api(client: genai.Client, batch_data: dict[str, list]) -> dict[str, list]:
-    """Kirim batch ke Gemini. Retry otomatis untuk error sementara. Raise ProhibitedContentError jika diblokir."""
+    """Send batch to Gemini. Auto-retry for temporary errors. Raise ProhibitedContentError if blocked."""
     prompt      = MASTER_PROMPT.replace("{json_content}", json.dumps(batch_data, ensure_ascii=False, indent=2))
     last_error  = None
 
     for attempt_idx, delay in enumerate([0] + API_RETRY_DELAYS, start=1):
         if delay > 0:
-            print(f"  [RETRY-API {attempt_idx}/{len(API_RETRY_DELAYS)+1}] Jeda {delay}s...")
+            print(f"  [RETRY-API {attempt_idx}/{len(API_RETRY_DELAYS)+1}] Pause for {delay}s...")
             time.sleep(delay)
 
         try:
@@ -281,9 +309,9 @@ def call_gemini_api(client: genai.Client, batch_data: dict[str, list]) -> dict[s
         raw_text = (getattr(response, "text", None) or "").strip()
         if not raw_text:
             # Candidate kosong bisa karena overload/timeout — retry dulu, bukan per-item
-            last_error = ValueError("Response kosong dari API (empty candidate)")
+            last_error = ValueError("Empty response from API (empty candidate)")
             if attempt_idx < len([0] + API_RETRY_DELAYS):
-                print(f"  [!] Response kosong (retry)...")
+                print(f"  [!] Empty response (retry)...")
                 continue
             raise last_error
 
@@ -292,7 +320,7 @@ def call_gemini_api(client: genai.Client, batch_data: dict[str, list]) -> dict[s
         try:
             result = json.loads(cleaned)
         except json.JSONDecodeError as e:
-            last_error = ValueError(f"JSON tidak valid: {e}\n{raw_text[:300]}")
+            last_error = ValueError(f"Invalid JSON: {e}\n{raw_text[:300]}")
             if attempt_idx < len([0] + API_RETRY_DELAYS):
                 print(f"  [!] JSON invalid (retry): {e}")
                 continue
@@ -304,25 +332,25 @@ def call_gemini_api(client: genai.Client, batch_data: dict[str, list]) -> dict[s
             if len(filenames) == 1:
                 result = {filenames[0]: result}
             else:
-                last_error = ValueError(f"Response list padahal {len(filenames)} file")
+                last_error = ValueError(f"Response is a list even though there are {len(filenames)} files")
                 if attempt_idx < len([0] + API_RETRY_DELAYS):
                     continue
                 raise last_error
 
         if not isinstance(result, dict):
-            raise ValueError(f"Response bukan dict: {type(result).__name__}")
+            raise ValueError(f"Response is not a dict: {type(result).__name__}")
 
         return result
 
-    raise last_error or RuntimeError("Semua retry API habis")
+    raise last_error or RuntimeError("All API retries exhausted")
 
 
 def call_gemini_api_per_item(client: genai.Client, filename: str, items: list[dict]) -> list[dict]:
     """
-    Fallback saat file diblokir PROHIBITED_CONTENT.
-    Terjemahkan tiap item satu per satu dengan timeout per item.
-    Item yang diblokir → teks asli dipertahankan, jumlah item tetap sama.
-    Satu ThreadPoolExecutor dipakai untuk semua item — tidak buat/hancurkan per item.
+    Fallback when file is blocked by PROHIBITED_CONTENT.
+    Translate each item one by one with a per-item timeout.
+    Blocked items → original text is maintained, the number of items remains the same.
+    One ThreadPoolExecutor is used for all items — do not create/destroy per item.
     """
     import concurrent.futures as _cf
     results = []
@@ -339,7 +367,7 @@ def call_gemini_api_per_item(client: genai.Client, filename: str, items: list[di
                 try:
                     api_result = future.result(timeout=API_TIMEOUT)
                 except _cf.TimeoutError:
-                    print(f"  [!] Per-item timeout index {i} — teks asli dipertahankan")
+                    print(f"  [!] Per-item timeout index {i} — original text preserved")
                     results.append(item)
                     continue
                 translated = api_result.get(filename, [item])
@@ -355,7 +383,7 @@ def call_gemini_api_per_item(client: genai.Client, filename: str, items: list[di
                 results.append(item)
 
     if blocked:
-        print(f"  [INFO] {blocked}/{len(items)} item diblokir — teks asli dipertahankan")
+        print(f"  [INFO] {blocked}/{len(items)} items blocked — original text preserved")
     return results
 
 # ═══════════════════════════════════════════════════════════════
@@ -367,10 +395,10 @@ def load_json_safe(filepath: Path) -> tuple[list | None, str | None]:
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
         if not isinstance(data, list):
-            return None, f"Bukan array (tipe: {type(data).__name__})"
+            return None, f"Not an array (type: {type(data).__name__})"
         return data, None
-    except json.JSONDecodeError as e: return None, f"JSON rusak: {e}"
-    except FileNotFoundError:         return None, "File tidak ditemukan"
+    except json.JSONDecodeError as e: return None, f"Invalid JSON: {e}"
+    except FileNotFoundError:         return None, "File not found"
     except Exception as e:            return None, f"Error: {e}"
 
 
@@ -381,41 +409,41 @@ def validate_file_pair(filename: str) -> FileValidationResult:
     # FILE_MISSING harus dicek SEBELUM load_json_safe output,
     # karena load_json_safe mengembalikan "File tidak ditemukan" sebagai OUTPUT_JSON_INVALID
     if not (OUTPUT_FOLDER / filename).exists():
-        result.add_error("FILE_MISSING", "File output tidak ada"); return result
+        result.add_error("FILE_MISSING", "Output file does not exist"); return result
     out_data, err = load_json_safe(OUTPUT_FOLDER / filename)
     if err: result.add_error("OUTPUT_JSON_INVALID", err); return result
 
     len_in, len_out = len(in_data), len(out_data)
     if len_in != len_out:
         result.add_error("COUNT_MISMATCH",
-            f"Jumlah item berbeda: input={len_in}, output={len_out} (selisih {abs(len_in-len_out)})")
+            f"Item count mismatch: input={len_in}, output={len_out} (difference {abs(len_in-len_out)})")
 
     for idx in range(min(len_in, len_out)):
         in_item, out_item = in_data[idx], out_data[idx]
         if not isinstance(in_item, dict):
-            result.add_error("ITEM_FORMAT_INVALID", f"Index {idx} INPUT bukan dict"); continue
+            result.add_error("ITEM_FORMAT_INVALID", f"Index {idx} INPUT is not a dict"); continue
         if not isinstance(out_item, dict):
-            result.add_error("ITEM_FORMAT_INVALID", f"Index {idx} OUTPUT bukan dict"); continue
+            result.add_error("ITEM_FORMAT_INVALID", f"Index {idx} OUTPUT is not a dict"); continue
         for key in STATIC_KEYS:
             in_v, out_v = in_item.get(key), out_item.get(key)
             if key not in out_item:
-                result.add_error("STATIC_KEY_MISSING", f"Index {idx}: '{key}' hilang (input={repr(in_v)})")
+                result.add_error("STATIC_KEY_MISSING", f"Index {idx}: '{key}' is missing (input={repr(in_v)})")
             elif in_v != out_v:
-                result.add_error("STATIC_KEY_CHANGED", f"Index {idx}: '{key}' berubah! {repr(in_v)} -> {repr(out_v)}")
+                result.add_error("STATIC_KEY_CHANGED", f"Index {idx}: '{key}' changed! {repr(in_v)} -> {repr(out_v)}")
         for key in MUTABLE_KEYS:
             if key not in out_item:
-                result.add_error("MUTABLE_KEY_MISSING", f"Index {idx}: key '{key}' hilang")
+                result.add_error("MUTABLE_KEY_MISSING", f"Index {idx}: key '{key}' is missing")
         unexpected = set(out_item.keys()) - set(in_item.keys())
         if unexpected:
-            result.add_error("UNEXPECTED_KEYS", f"Index {idx}: key baru: {unexpected}")
+            result.add_error("UNEXPECTED_KEYS", f"Index {idx}: new key: {unexpected}")
     return result
 
 
 def print_validation_inline(result: FileValidationResult):
     if result.is_valid:
-        print(f"       OK  VALIDASI BERHASIL")
+        print(f"       OK  VALIDATION SUCCESSFUL")
     else:
-        print(f"       !!  VALIDASI GAGAL  ({len(result.errors)} masalah):")
+        print(f"       !!  VALIDATION FAILED  ({len(result.errors)} issues):")
         for err in result.errors:
             print(f"            -> [{err.error_type}] {err.detail}")
 
@@ -431,7 +459,7 @@ async def process_file_with_repair(
     fname = filepath.name
     input_data, err = load_json_safe(filepath)
     if err:
-        print(f"  [GAGAL] {fname}  (baca input gagal: {err})")
+        print(f"  [FAILED] {fname}  (failed to read input: {err})")
         return 0, 1
 
     async def _run_api(data):
@@ -457,7 +485,7 @@ async def process_file_with_repair(
         await write_json_file(out_path, out_data)
         val = validate_file_pair(fname)
         if not val.is_valid and val.only_static_key_errors():
-            print(f"  [AUTO-REPAIR] {fname}  → {len(val.errors)} static key diperbaiki")
+            print(f"  [AUTO-REPAIR] {fname}  → {len(val.errors)} static keys fixed")
             repaired = repair_static_keys(input_data, out_data)
             await write_json_file(out_path, repaired)
             val = validate_file_pair(fname)
@@ -469,23 +497,23 @@ async def process_file_with_repair(
         except asyncio.TimeoutError:
             if attempt <= MAX_RETRIES:
                 delay = API_RETRY_DELAYS[min(attempt-1, len(API_RETRY_DELAYS)-1)]
-                print(f"  [TIMEOUT {attempt}/{MAX_RETRIES}] {fname}  — retry dalam {delay}s...")
+                print(f"  [TIMEOUT {attempt}/{MAX_RETRIES}] {fname}  — retry in {delay}s...")
                 await asyncio.sleep(delay)
                 continue
-            print(f"  [GAGAL] {fname}  (timeout semua retry)")
+            print(f"  [FAILED] {fname}  (all retries timed out)")
             return 0, 1
         except ProhibitedContentError as e:
             print(f"  [BLOCKED] {fname}  (PROHIBITED_CONTENT: {e}) — per-item fallback...")
             try:
                 out_data = await _run_per_item()
             except Exception as ex:
-                print(f"  [GAGAL] {fname}  (per-item gagal: {ex})")
+                print(f"  [FAILED] {fname}  (per-item failed: {ex})")
                 return 0, 1
             ok, val = await _save_validate_repair(out_data)
             if ok:
                 print(f"  [OK]    {fname}  (via per-item)")
             else:
-                print(f"  [GAGAL] {fname}  (per-item: validasi gagal)")
+                print(f"  [FAILED] {fname}  (per-item: validation failed)")
                 global_failed.append(val)
             print_validation_inline(val)
             return (1, 0) if ok else (0, 1)
@@ -493,19 +521,19 @@ async def process_file_with_repair(
             msg = str(e).split("\n")[0][:100]
             if attempt <= MAX_RETRIES:
                 delay = API_RETRY_DELAYS[min(attempt-1, len(API_RETRY_DELAYS)-1)]
-                print(f"  [RETRY {attempt}/{MAX_RETRIES}] {fname}  → {msg}  (jeda {delay}s)")
+                print(f"  [RETRY {attempt}/{MAX_RETRIES}] {fname}  → {msg}  (delay {delay}s)")
                 await asyncio.sleep(delay)
                 continue
-            print(f"  [GAGAL] {fname}  (semua retry habis: {msg})")
+            print(f"  [FAILED] {fname}  (all retries exhausted: {msg})")
             return 0, 1
 
         if fname not in api_result:
             if attempt <= MAX_RETRIES:
                 delay = API_RETRY_DELAYS[min(attempt-1, len(API_RETRY_DELAYS)-1)]
-                print(f"  [RETRY {attempt}/{MAX_RETRIES}] {fname}  → tidak ada di response (jeda {delay}s)")
+                print(f"  [RETRY {attempt}/{MAX_RETRIES}] {fname}  → not in response (delay {delay}s)")
                 await asyncio.sleep(delay)
                 continue
-            print(f"  [GAGAL] {fname}  (tidak ada di response API)")
+            print(f"  [FAILED] {fname}  (not in API response)")
             return 0, 1
 
         out_data = api_result[fname]
@@ -521,12 +549,12 @@ async def process_file_with_repair(
         if ok:
             print(f"  [OK]    {fname}")
         else:
-            print(f"  [GAGAL] {fname}  (validasi gagal)")
+            print(f"  [FAILED] {fname}  (validation failed)")
             global_failed.append(val)
         print_validation_inline(val)
         return (1, 0) if ok else (0, 1)
 
-    print(f"  [GAGAL] {fname}  (habis semua attempt)")
+    print(f"  [FAILED] {fname}  (exhausted all attempts)")
     return 0, 1
 
 # ═══════════════════════════════════════════════════════════════
@@ -569,10 +597,10 @@ async def process_and_validate_batch(
             for sf in skipped:
                 val = skip_val_cache[sf.name]
                 if val.is_valid:
-                    print(f"  [SKIP] {sf.name}  (output valid, lewati)")
+                    print(f"  [SKIP] {sf.name}  (valid output, skipping)")
                     ok_total += 1
                 else:
-                    print(f"  [SKIP-INVALID] {sf.name}  (output ada tapi invalid, diproses ulang)")
+                    print(f"  [SKIP-INVALID] {sf.name}  (output exists but is invalid, reprocessing)")
         else:
             skip_val_cache = {}
         # Gunakan cache — tidak perlu validate_file_pair ulang
@@ -591,7 +619,7 @@ async def process_and_validate_batch(
 
     for fp, content in zip(batch_files, file_contents):
         if isinstance(content, Exception):
-            print(f"  [GAGAL] {fp.name}  (baca gagal: {content})")
+            print(f"  [FAILED] {fp.name}  (read failed: {content})")
             fail_total += 1
         else:
             input_cache[fp.name] = content
@@ -657,7 +685,7 @@ async def _send_and_process(
         in_data = input_cache[fname]
 
         if fname not in api_result:
-            print(f"  [RETRY-SINGLE] {fname}  → tidak ada di response")
+            print(f"  [RETRY-SINGLE] {fname}  → not in response")
             ok, fail = await process_file_with_repair(client, filepath, global_failed)
             success_count += ok; fail_count += fail
             continue
@@ -667,7 +695,7 @@ async def _send_and_process(
         try:
             await write_json_file(out_path, out_data)
         except Exception as e:
-            print(f"  [GAGAL] {fname}  (simpan gagal: {e})")
+            print(f"  [FAILED] {fname}  (save failed: {e})")
             fail_count += 1; continue
 
         val = validate_file_pair(fname)
@@ -695,7 +723,7 @@ async def _send_and_process(
             print(f"  [OK]    {fname}")
             success_count += 1
         else:
-            print(f"  [GAGAL] {fname}  (validasi gagal)")
+            print(f"  [FAILED] {fname}  (validation failed)")
             fail_count += 1
             global_failed.append(val)
         print_validation_inline(val)
@@ -710,7 +738,7 @@ def write_error_log(failed: list[FileValidationResult], stats: dict):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(ERROR_LOG_FILE, "w", encoding="utf-8") as f:
         f.write(f"VALIDATION ERROR LOG  |  {ts}\n")
-        f.write(f"Total:{stats['total']}  OK:{stats['success']}  Gagal:{stats['fail']}\n\n")
+        f.write(f"Total:{stats['total']}  OK:{stats['success']}  Failed:{stats['fail']}\n\n")
         for r in failed:
             f.write(f">> {r.filename}\n")
             for e in r.errors:
@@ -727,12 +755,12 @@ async def main():
     print("=" * 65)
 
     if not INPUT_FOLDER.exists():
-        print(f"[ERROR] Folder '{INPUT_FOLDER}' tidak ditemukan!")
+        print(f"[ERROR] Folder '{INPUT_FOLDER}' not found!")
         sys.exit(1)
 
     json_files = sorted(INPUT_FOLDER.glob("*.json"))
     if not json_files:
-        print(f"[INFO] Tidak ada .json di '{INPUT_FOLDER}'."); sys.exit(0)
+        print(f"[INFO] No .json files in '{INPUT_FOLDER}'."); sys.exit(0)
 
     OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
     total_files   = len(json_files)
@@ -742,7 +770,7 @@ async def main():
     print(f"  Output  : {OUTPUT_FOLDER.resolve()}")
     print(f"  File    : {total_files}  |  Batch: {total_batches}  |  Model: {GEMINI_MODEL}")
     print(f"  Timeout : {API_TIMEOUT}s  |  Retry: {MAX_RETRIES}x  |  Backoff: {API_RETRY_DELAYS}")
-    print(f"  Payload : maks {MAX_PAYLOAD_CHARS:,} char/batch\n")
+    print(f"  Payload : max {MAX_PAYLOAD_CHARS:,} chars/batch\n")
 
     client = init_gemini()
     batches = [json_files[i:i+BATCH_SIZE] for i in range(0, total_files, BATCH_SIZE)]
@@ -761,24 +789,24 @@ async def main():
 
     for batch_idx, batch in enumerate(batches, 1):
         print(f"+-- Batch {batch_idx}/{total_batches}  ({len(batch)} file) " + "-"*28)
-        print(f"|   Mengirim ke Gemini API...")
+        print(f"|   Sending to Gemini API...")
         t0 = time.time()
         ok, fail = await process_and_validate_batch(client, batch, global_failed)
         total_success += ok; total_fail += fail
-        print(f"+-- Selesai {time.time()-t0:.1f}s  |  OK: {ok}  Gagal: {fail}\n")
+        print(f"+-- Finished {time.time()-t0:.1f}s  |  OK: {ok}  Failed: {fail}\n")
         if batch_idx < total_batches:
-            print(f"    Jeda {BATCH_DELAY}s...\n")
+            print(f"    Delay {BATCH_DELAY}s...\n")
             await asyncio.sleep(BATCH_DELAY)
 
     elapsed = time.time() - start_time
     print("=" * 65)
     skip_str = f"  Skip: {total_skip}  |" if SKIP_EXISTING and total_skip > 0 else ""
-    print(f"  Durasi: {elapsed:.0f}s  |  OK: {total_success}  Gagal: {total_fail}  |{skip_str}  Total: {total_files}")
+    print(f"  Duration: {elapsed:.0f}s  |  OK: {total_success}  Failed: {total_fail}  |{skip_str}  Total: {total_files}")
     if global_failed:
         write_error_log(global_failed, {"total": total_files, "success": total_success, "fail": total_fail})
-        print(f"  {len(global_failed)} file bermasalah → {ERROR_LOG_FILE}")
+        print(f"  {len(global_failed)} problematic files → {ERROR_LOG_FILE}")
     else:
-        print("  Semua file lolos validasi!")
+        print("  All files passed validation!")
         if ERROR_LOG_FILE.exists(): ERROR_LOG_FILE.unlink()
     print("=" * 65)
 
