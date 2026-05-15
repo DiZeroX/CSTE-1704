@@ -1,8 +1,8 @@
 import os
 import glob
 
-input_folder = r"raw"        # original files folder
-trans_folder = r"raw3"  # translated files folder
+input_folder = r"2_json_formatted_translation_todo"        # original files folder
+trans_folder = r"2.5_json_formatted_translation_done"  # translated files folder
 
 json_files = glob.glob(os.path.join(trans_folder, "*.json"))
 

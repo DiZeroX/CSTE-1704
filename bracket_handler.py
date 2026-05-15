@@ -5,9 +5,9 @@ import json
 # =========================
 # CONFIG
 # =========================
-original_folder = r"json"
-translated_folder = r"output_json"
-output_folder = r"fixed_json"
+original_folder = r"2_json_formatted_translation_todo"
+translated_folder = r"2.5_json_formatted_translation_done"
+output_folder = r"3_json_post_processed_brackets"
 
 os.makedirs(output_folder, exist_ok=True)
 

@@ -22,8 +22,8 @@ from google.genai import types
 # KONFIGURASI
 # ═══════════════════════════════════════════════════════════════
 
-INPUT_FOLDER   = Path("input_json")
-OUTPUT_FOLDER  = Path("json_id")
+INPUT_FOLDER   = Path("2_json_formatted_translation_todo")
+OUTPUT_FOLDER  = Path("2.5_json_formatted_translation_done")
 ERROR_LOG_FILE = Path("error_log.txt")
 
 GEMINI_MODEL      = "gemini-2.5-flash-lite"

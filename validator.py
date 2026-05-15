@@ -5,8 +5,8 @@ import json
 # =========================
 # CONFIG
 # =========================
-original_folder = r"raw"
-translated_folder = r"raw3"
+original_folder = r"2_json_formatted_translation_todo"
+translated_folder = r"2.5_json_formatted_translation_done"
 
 # =========================
 # HELPER

@@ -5,8 +5,8 @@ import pathlib
 
 MAX_CHAR = 56
 
-INPUT_FOLDER = "raw2"
-OUTPUT_FOLDER = "raw3"
+INPUT_FOLDER = "3_json_post_processed_brackets"
+OUTPUT_FOLDER = "3.5_json_word_wrapper"
 
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 

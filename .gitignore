@@ -1,2 +1,17 @@
 venv
+__pycache__
+
 .env
+
+0_scene_cst_input_decompiled
+1_json_decompiled
+1.5_name_processed
+2_json_formatted_translation_todo
+2.5_json_formatted_translation_done
+3_json_post_processed_brackets
+3.5_json_word_wrapper
+4_json_reverted_to_decompiled
+5_scene_cst_patch_output_compiled
+error_log.txt
+speaker_list.json
+speaker_processed.json

@@ -1,11 +1,11 @@
 import subprocess
 import pathlib
 
-vntextpatch_path = r"VNTextPatch.exe"
+vntextpatch_path = r"D:\Projects\Grisaia Remaster Translation\VNTranslationTools\VNTextPatch\VNTextPatch.exe"
 
-input_folder = pathlib.Path("scene-cst")
-json_folder = pathlib.Path("json_translated")
-patched_folder = pathlib.Path("scene-cst-patched")
+input_folder = pathlib.Path("0_scene_cst_input_decompiled")
+json_folder = pathlib.Path("4_json_reverted_to_decompiled")
+patched_folder = pathlib.Path("5_scene_cst_patch_output_compiled")
 
 patched_folder.mkdir(exist_ok=True)
 

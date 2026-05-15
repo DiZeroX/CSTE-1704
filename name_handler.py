@@ -5,8 +5,15 @@ import json
 # =========================
 # CONFIG
 # =========================
-TARGET_FOLDER = r"raw3"
+TARGET_FOLDER = r"1_json_decompiled"
+OUTPUT_FOLDER = r"1.5_name_processed"
 NAME_LIST_FILE = "speaker_list.json"
+PROCESSED_NAME_LIST_FILE = "speaker_processed.json"
+
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+OUTPUT_PATH = os.path.join(OUTPUT_FOLDER, NAME_LIST_FILE)
+PROCESSED_INPUT_PATH = os.path.join(OUTPUT_FOLDER, PROCESSED_NAME_LIST_FILE)
 
 # =========================
 # STEP 1 - COLLECT ORIGINAL NAMES
@@ -31,7 +38,7 @@ def collect_speakers():
 
     speakers = sorted(speakers)
 
-    with open(NAME_LIST_FILE, "w", encoding="utf-8") as f:
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(speakers, f, ensure_ascii=False, indent=2)
 
     print(f"✅ Original speaker list saved to: {NAME_LIST_FILE}")
@@ -42,20 +49,20 @@ def collect_speakers():
 # STEP 2 - APPLY PROCESSED NAMES
 # =========================
 def apply_name_mapping():
-    if not os.path.exists("speaker_list.json"):
+    if not os.path.exists(OUTPUT_PATH):
         print("❌ speaker_list.json not found.")
         return
 
-    if not os.path.exists("speaker_processed.json"):
+    if not os.path.exists(PROCESSED_INPUT_PATH):
         print("❌ speaker_processed.json not found.")
         return
 
     # Load original list
-    with open("speaker_list.json", "r", encoding="utf-8") as f:
+    with open(OUTPUT_PATH, "r", encoding="utf-8") as f:
         original_list = json.load(f)
 
     # Load processed list
-    with open("speaker_processed.json", "r", encoding="utf-8") as f:
+    with open(PROCESSED_INPUT_PATH, "r", encoding="utf-8") as f:
         processed_list = json.load(f)
 
     # Safety check

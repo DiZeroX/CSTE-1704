@@ -5,15 +5,17 @@ import os
 # =========================
 # CONFIG
 # =========================
-INPUT_FOLDER_RAW = r"raw"
-OUTPUT_FOLDER_JSON = r"json"
-INPUT_FOLDER_JSON = r"fixed_json"
-OUTPUT_FOLDER_RAW = r"raw2"
+INPUT_FOLDER_RAW = r"1_json_decompiled"
+OUTPUT_FOLDER_JSON = r"2_json_formatted_translation_todo"
+INPUT_FOLDER_JSON = r"3_json_post_processed_brackets"
+OUTPUT_FOLDER_RAW = r"4_json_reverted_to_decompiled"
 
 os.makedirs(OUTPUT_FOLDER_RAW, exist_ok=True)
 os.makedirs(INPUT_FOLDER_RAW, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER_JSON, exist_ok=True)
 os.makedirs(INPUT_FOLDER_JSON, exist_ok=True)
+
+os.makedirs(r"2.5_json_formatted_translation_done", exist_ok=True)
 
 # =========================
 # TEXT CLEANER
