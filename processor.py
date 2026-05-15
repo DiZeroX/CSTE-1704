@@ -24,7 +24,7 @@ from google.genai import types
 
 INPUT_FOLDER   = Path("2_json_formatted_translation_todo")
 OUTPUT_FOLDER  = Path("2.5_json_formatted_translation_done")
-ERROR_LOG_FILE = Path("error_log.txt")
+ERROR_LOG_FILE = Path("processor_error_log.txt")
 
 GEMINI_MODEL      = "gemini-2.5-flash-lite"
 BATCH_SIZE        = 30        # File per request (dipecah otomatis jika payload besar)
